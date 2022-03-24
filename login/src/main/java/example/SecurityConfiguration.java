@@ -13,12 +13,14 @@ import org.opensaml.xml.parse.ParserPool;
 import org.opensaml.xml.parse.StaticBasicParserPool;
 import org.opensaml.xml.parse.XMLParserException;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.saml.SAMLAuthenticationProvider;
 import org.springframework.security.saml.SAMLBootstrap;
+import org.springframework.security.saml.SAMLEntryPoint;
 import org.springframework.security.saml.SAMLProcessingFilter;
 import org.springframework.security.saml.context.SAMLContextProvider;
 import org.springframework.security.saml.context.SAMLContextProviderImpl;
@@ -27,15 +29,24 @@ import org.springframework.security.saml.key.KeyManager;
 import org.springframework.security.saml.log.SAMLDefaultLogger;
 import org.springframework.security.saml.log.SAMLLogger;
 import org.springframework.security.saml.metadata.CachingMetadataManager;
+import org.springframework.security.saml.metadata.ExtendedMetadata;
+import org.springframework.security.saml.metadata.MetadataGenerator;
+import org.springframework.security.saml.metadata.MetadataGeneratorFilter;
 import org.springframework.security.saml.metadata.MetadataManager;
 import org.springframework.security.saml.processor.HTTPPostBinding;
 import org.springframework.security.saml.processor.SAMLBinding;
 import org.springframework.security.saml.processor.SAMLProcessor;
 import org.springframework.security.saml.processor.SAMLProcessorImpl;
 import org.springframework.security.saml.util.VelocityFactory;
+import org.springframework.security.saml.websso.WebSSOProfile;
 import org.springframework.security.saml.websso.WebSSOProfileConsumer;
+import org.springframework.security.saml.websso.WebSSOProfileConsumerHoKImpl;
 import org.springframework.security.saml.websso.WebSSOProfileConsumerImpl;
+import org.springframework.security.saml.websso.WebSSOProfileImpl;
+import org.springframework.security.saml.websso.WebSSOProfileOptions;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.channel.ChannelProcessingFilter;
 import org.springframework.security.web.csrf.CsrfFilter;
 
 @Configuration
@@ -50,27 +61,44 @@ public class SecurityConfiguration {
     SecurityFilterChain web(HttpSecurity http,
                             AuthenticationProvider samlAuthenticationProvider,
                             SAMLProcessor samlProcessor,
-                            SAMLContextProvider contextProvider) throws Exception {
+                            SAMLContextProvider contextProvider,
+                            AuthenticationEntryPoint samlEntryPoint,
+                            MetadataManager assertingPartyMetadata,
+                            KeyManager keyManager) throws Exception {
         SAMLProcessingFilter filter = new SAMLProcessingFilter();
         filter.setAuthenticationManager(samlAuthenticationProvider::authenticate);
         filter.setSAMLProcessor(samlProcessor);
         filter.setContextProvider(contextProvider);
         filter.setFilterProcessesUrl("/login/saml2/sso/one");
 
+        MetadataGenerator metadataGenerator = new MetadataGenerator();
+        metadataGenerator.setEntityId("http://localhost:8080/saml2/service-provider-metadata/one");
+        metadataGenerator.setKeyManager(keyManager);
+        metadataGenerator.setRequestSigned(false);
+        metadataGenerator.setSamlWebSSOFilter(filter);
+        ExtendedMetadata extendedMetadata = new ExtendedMetadata();
+        extendedMetadata.setIdpDiscoveryEnabled(false);
+        metadataGenerator.setExtendedMetadata(extendedMetadata);
+        MetadataGeneratorFilter metadataFilter = new MetadataGeneratorFilter(metadataGenerator);
+        metadataFilter.setManager(assertingPartyMetadata);
+
         // @formatter:off
         http
             .authorizeHttpRequests((requests) -> requests.anyRequest().authenticated())
-            .addFilterBefore(filter, CsrfFilter.class);
+            .exceptionHandling((exception) -> exception.authenticationEntryPoint(samlEntryPoint))
+            .addFilterBefore(filter, CsrfFilter.class)
+            .addFilterBefore(metadataFilter, ChannelProcessingFilter.class);
         // @formatter:on
 
         return http.build();
     }
 
     @Bean
-    AuthenticationProvider samlAuthenticationProvider(WebSSOProfileConsumer consumer, SAMLLogger samlLogger) {
+    AuthenticationProvider samlAuthenticationProvider(@Qualifier("webSSOprofileConsumer") WebSSOProfileConsumer consumer,
+            @Qualifier("hokWebSSOprofileConsumer") WebSSOProfileConsumer hokConsumer, SAMLLogger samlLogger) {
         SAMLAuthenticationProvider provider = new SAMLAuthenticationProvider();
         provider.setConsumer(consumer);
-        //provider.setHokConsumer(hokConsumer);
+        provider.setHokConsumer(hokConsumer);
         provider.setSamlLogger(samlLogger);
         return provider;
     }
@@ -88,23 +116,28 @@ public class SecurityConfiguration {
     }
 
     @Bean("webSSOprofileConsumer")
-    public WebSSOProfileConsumer webSsoProfileConsumer(SAMLProcessor samlProcessor, MetadataManager assertingPartyMetadata) {
+    WebSSOProfileConsumer webSsoProfileConsumer(SAMLProcessor samlProcessor, MetadataManager assertingPartyMetadata) {
         return new WebSSOProfileConsumerImpl(samlProcessor, assertingPartyMetadata);
     }
 
+    @Bean("hokWebSSOprofileConsumer")
+    WebSSOProfileConsumer hokWebSsoProfileConsumer() {
+        return new WebSSOProfileConsumerHoKImpl();
+    }
+
     @Bean
-    public SAMLProcessor samlProcessor(ParserPool parserPool, VelocityEngine velocityEngine) {
+    SAMLProcessor samlProcessor(ParserPool parserPool, VelocityEngine velocityEngine) {
         SAMLBinding post = new HTTPPostBinding(parserPool, velocityEngine);
         return new SAMLProcessorImpl(post);
     }
 
     @Bean
-    public VelocityEngine velocity() {
+    VelocityEngine velocity() {
         return VelocityFactory.getEngine();
     }
 
     @Bean
-    public MetadataManager assertingPartyMetadata(KeyManager keyManager, ParserPool pool) throws MetadataProviderException {
+    MetadataManager assertingPartyMetadata(KeyManager keyManager, ParserPool pool) throws MetadataProviderException {
         HTTPMetadataProvider http = new HTTPMetadataProvider(new Timer(), new HttpClient(),
                 "https://dev-05937739.okta.com/app/exk46xofd8NZvFCpS5d7/sso/saml/metadata");
         http.setParserPool(pool);
@@ -115,7 +148,21 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    public ParserPool parserPool() throws XMLParserException {
+    AuthenticationEntryPoint samlEntryPoint() {
+        SAMLEntryPoint entryPoint = new SAMLEntryPoint();
+        WebSSOProfileOptions webSSOProfileOptions = new WebSSOProfileOptions();
+        webSSOProfileOptions.setIncludeScoping(false);
+        entryPoint.setDefaultProfileOptions(webSSOProfileOptions);
+        return entryPoint;
+    }
+
+    @Bean("webSSOprofile")
+    WebSSOProfile webSsoProfile(SAMLProcessor samlProcessor, MetadataManager assertingPartyMetadata) {
+        return new WebSSOProfileImpl(samlProcessor, assertingPartyMetadata);
+    }
+
+    @Bean
+    ParserPool parserPool() throws XMLParserException {
         StaticBasicParserPool parserPool = new StaticBasicParserPool();
         parserPool.initialize();
         return parserPool;
@@ -127,7 +174,7 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    public KeyManager keyManager() {
+    KeyManager keyManager() {
         return new EmptyKeyManager();
     }
 }

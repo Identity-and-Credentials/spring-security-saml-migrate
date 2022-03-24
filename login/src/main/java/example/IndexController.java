@@ -16,6 +16,13 @@
 
 package example;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.opensaml.saml2.core.Attribute;
+import org.opensaml.xml.schema.XSString;
+
 import org.springframework.security.providers.ExpiringUsernameAuthenticationToken;
 import org.springframework.security.saml.SAMLCredential;
 import org.springframework.stereotype.Controller;
@@ -30,8 +37,40 @@ public class IndexController {
 		SAMLCredential credential = (SAMLCredential) authentication.getCredentials();
 		String emailAddress = credential.getAttributeAsString("email");
 		model.addAttribute("emailAddress", emailAddress);
-		model.addAttribute("userAttributes", credential.getAttributes());
+		List<UserAttribute> userAttributes = new ArrayList<>();
+		for (Attribute attribute : credential.getAttributes()) {
+			List<String> attributeValues = getAttributesAsString(attribute);
+			userAttributes.add(new UserAttribute(attribute.getName(), attributeValues));
+		}
+		model.addAttribute("userAttributes", userAttributes);
 		return "index";
+	}
+
+	private List<String> getAttributesAsString(Attribute attribute) {
+		return attribute.getAttributeValues().stream()
+				.filter(XSString.class::isInstance).map(XSString.class::cast)
+				.map(XSString::getValue)
+				.collect(Collectors.toList());
+	}
+
+	public static class UserAttribute {
+
+		private final String name;
+
+		private final List<String> values;
+
+		public UserAttribute(String name, List<String> values) {
+			this.name = name;
+			this.values = values;
+		}
+
+		public String getName() {
+			return this.name;
+		}
+
+		public List<String> getValues() {
+			return this.values;
+		}
 	}
 
 }

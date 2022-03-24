@@ -44,8 +44,8 @@
         <p class="lead">You're email address is <span th:text="${emailAddress}"></span></p>
         <h2 class="mt-2">All Your Attributes</h2>
         <dl th:each="userAttribute : ${userAttributes}">
-            <dt th:text="${userAttribute.key}"></dt>
-            <dd th:text="${userAttribute.value}"></dd>
+            <dt th:text="${userAttribute.name}"></dt>
+            <dd th:each="value: ${userAttribute.values}" th:text="${value}"></dd>
         </dl>
 
         <h6>Visit the <a href="https://docs.spring.io/spring-security/site/docs/current/reference/html5/#servlet-saml2" target="_blank">SAML 2.0 Login & Logout</a> documentation for more details.</h6>
