@@ -112,7 +112,7 @@ public class SecurityConfiguration {
         // @formatter:off
         http
             .authorizeHttpRequests((requests) -> requests
-                .antMatchers("/login").permitAll()
+                .antMatchers("/logged-out").permitAll()
                 .anyRequest().authenticated()
             )
             .exceptionHandling((exception) -> exception.authenticationEntryPoint(samlEntryPoint))
@@ -217,7 +217,7 @@ public class SecurityConfiguration {
     @Bean
     SimpleUrlLogoutSuccessHandler successLogoutHandler() {
         SimpleUrlLogoutSuccessHandler logoutSuccessHandler = new SimpleUrlLogoutSuccessHandler();
-        logoutSuccessHandler.setDefaultTargetUrl("/login?logout");
+        logoutSuccessHandler.setDefaultTargetUrl("/logged-out");
         return logoutSuccessHandler;
     }
 

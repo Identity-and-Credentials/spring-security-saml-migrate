@@ -62,7 +62,7 @@ public class LoginLogoutApplicationITests {
 		HtmlPage home = (HtmlPage) this.webClient.getCurrentWindow().getEnclosedPage();
 		HtmlElement rpLogoutButton = home.getHtmlElementById("rp_logout_button");
 		HtmlPage loginPage = rpLogoutButton.click();
-		assertThat(loginPage.getUrl().getFile()).isEqualTo("/login?logout");
+		assertThat(loginPage.getUrl().getFile()).isEqualTo("/logged-out");
 	}
 
 	private void performLogin() throws Exception {
