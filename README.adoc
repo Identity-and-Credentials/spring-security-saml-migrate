@@ -1,0 +1,7 @@
+= SAML Migrate Samples
+
+This repository contains samples meant to be used as a reference for migrating from the `spring-security-saml` extension to the new `spring-security-saml2-service-provider` module in Spring Security.
+
+These samples are intended to be compared with the samples in the Spring Security Samples repository.
+
+Please refer to the README inside each sample for more information.

@@ -1,0 +1,36 @@
+= SAML 2.0 Login & Logout Sample
+
+This guide provides instructions on setting up this SAML 2.0 Login & Logout sample application.
+It uses https://developer.okta.com/docs/guides/build-sso-integration/saml2/main/[Okta SAML 2.0 IDP] as its asserting party.
+
+The sample application uses Spring Boot and the EOL `org.springframework.security.extensions:spring-security-saml2-core:1.0.10.RELEASE` dependency.
+
+This sample is intended to be used as an apples-to-apples comparison with https://github.com/spring-projects/spring-security-samples/tree/5.7.x/servlet/spring-boot/java/saml2/login-single-tenant[Spring Security Samples - SAML 2.0 Login & Logout Sample] which uses `spring-security-saml2-service-provider` module.
+
+== Run the Sample
+
+=== Start up the Sample Boot Application
+```
+ ./gradlew :bootRun
+```
+Or run the `LoginLogoutApplication.java` class directly.
+
+=== Open a Browser
+
+http://localhost:8080/
+
+You will be redirected to the Okta SAML 2.0 IDP
+
+=== Type in your credentials
+
+```
+User: testuser@spring.security.saml
+Password: 12345678
+```
+
+You will be redirected to the home page.
+
+=== Click on the Logout button
+
+This button will trigger the RP-initiated Logout.
+Note that this sample does not support AP-initiated Logout since the Okta SAML 2.0 IDP https://help.okta.com/en/prod/Content/Topics/Apps/Apps_Single_Logout.htm[does not support it].
