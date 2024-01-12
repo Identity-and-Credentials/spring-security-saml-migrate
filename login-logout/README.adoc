@@ -24,13 +24,22 @@ You will be redirected to the Okta SAML 2.0 IDP
 === Type in your credentials
 
 ```
-User: testuser@spring.security.saml
-Password: 12345678
+User: <the_okta_dev_account_user>@vmware.com
+Password: <the_okta_dev_account_password>
 ```
 
 You will be redirected to the home page.
 
 === Click on the Logout button
 
-This button will trigger the RP-initiated Logout.
+This button will trigger the RP-initiated Logout. #This logout process requires
+the Okta Application SAML Settings SAML Single Logout to be enabled, and unless
+it is enabled, which requires some extra settings, you will get 500 reponse with
+an error as follows in the local server log as follows:#
+```
+org.opensaml.saml2.metadata.provider.MetadataProviderException: IDP doesn't contain any SingleLogout endpoints
+at org.springframework.security.saml.util.SAMLUtil.getLogoutBinding(SAMLUtil.java:129) ~[spring-security-saml2-core-1.0.10.RELEASE.jar:1.0.10.RELEASE]
+...
+```
+
 Note that this sample does not support AP-initiated Logout since the Okta SAML 2.0 IDP https://help.okta.com/en/prod/Content/Topics/Apps/Apps_Single_Logout.htm[does not support it].

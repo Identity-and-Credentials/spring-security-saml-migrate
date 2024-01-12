@@ -29,7 +29,6 @@ import org.springframework.security.saml.SAMLLogoutProcessingFilter;
 import org.springframework.security.saml.SAMLProcessingFilter;
 import org.springframework.security.saml.context.SAMLContextProvider;
 import org.springframework.security.saml.context.SAMLContextProviderImpl;
-import org.springframework.security.saml.key.EmptyKeyManager;
 import org.springframework.security.saml.key.JKSKeyManager;
 import org.springframework.security.saml.key.KeyManager;
 import org.springframework.security.saml.log.SAMLDefaultLogger;
@@ -44,7 +43,6 @@ import org.springframework.security.saml.processor.SAMLBinding;
 import org.springframework.security.saml.processor.SAMLProcessor;
 import org.springframework.security.saml.processor.SAMLProcessorImpl;
 import org.springframework.security.saml.util.VelocityFactory;
-import org.springframework.security.saml.websso.SingleLogoutProfile;
 import org.springframework.security.saml.websso.SingleLogoutProfileImpl;
 import org.springframework.security.saml.websso.WebSSOProfile;
 import org.springframework.security.saml.websso.WebSSOProfileConsumer;
@@ -80,6 +78,8 @@ public class SecurityConfiguration {
         filter.setAuthenticationManager(samlAuthenticationProvider::authenticate);
         filter.setSAMLProcessor(samlProcessor);
         filter.setContextProvider(contextProvider);
+        // Set the Okta Application SAML Settings Single Sign On URL to this,
+        // i.e., http://localhost:8080/login/saml2/sso/one
         filter.setFilterProcessesUrl("/login/saml2/sso/one");
 
         SingleLogoutProfileImpl singleLogoutProfile = new SingleLogoutProfileImpl();
@@ -98,6 +98,7 @@ public class SecurityConfiguration {
         samlLogoutProcessingFilter.setSamlLogger(samlLogger);
 
         MetadataGenerator metadataGenerator = new MetadataGenerator();
+        // Set the Okta Application SAML Settings Audience Restriction to this entityId
         metadataGenerator.setEntityId("http://localhost:8080/saml2/service-provider-metadata/one");
         metadataGenerator.setKeyManager(keyManager);
         metadataGenerator.setRequestSigned(false);
@@ -170,8 +171,9 @@ public class SecurityConfiguration {
 
     @Bean
     MetadataManager assertingPartyMetadata(KeyManager keyManager, ParserPool pool) throws MetadataProviderException {
+        // The IDP metatdata URL is from the Okta Application Sign On setting
         HTTPMetadataProvider http = new HTTPMetadataProvider(new Timer(), new HttpClient(),
-                "https://dev-05937739.okta.com/app/exk46xofd8NZvFCpS5d7/sso/saml/metadata");
+                "https://dev-73893672.okta.com/app/exkef5al7mopEta1B5d7/sso/saml/metadata");
         http.setParserPool(pool);
         List<MetadataProvider> providers = Arrays.asList(http);
         MetadataManager manager = new CachingMetadataManager(providers);
